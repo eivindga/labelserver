@@ -157,6 +157,8 @@ For production deployment on a Raspberry Pi or Debian-based system, you can set 
    sudo lpadmin -p DYMO_LabelWriter_450 -E -v usb://DYMO/LabelWriter%20450 -m dymo_lw450.ppd
    ```
 
+   > **Detailed Setup Guide**: For a comprehensive step-by-step guide on setting up a Raspberry Pi as a print server for Dymo label printers, including CUPS configuration and troubleshooting, see: [Configure a Raspberry Pi as a Print Server for Dymo Label Printers](https://johnathan.org/configure-a-raspberry-pi-as-a-print-server-for-dymo-label-printers/)
+
 ### Build and Install for Production
 
 #### For x86_64 Systems (Standard)
