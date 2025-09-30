@@ -114,13 +114,13 @@ fn print_via_lp_lines(lines: &[Option<String>], printer: &str, job_id: &str, lab
         use std::io::Write;
 
         // Format the text from multiple lines
-        let formatted_text = lines
+        let formatted_text = format!("\n\n{}", lines
             .iter()
             .filter_map(|line| line.as_ref())
             .filter(|line| !line.is_empty())
             .cloned()
             .collect::<Vec<String>>()
-            .join("\n");
+            .join("\n"));
 
         stdin.write_all(formatted_text.as_bytes())
             .map_err(|e| PrinterError::SystemError(format!("Failed to write to lp stdin: {}", e)))?;
