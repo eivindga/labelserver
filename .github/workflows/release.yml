@@ -1,0 +1,92 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu,arm-unknown-linux-musleabihf,armv7-unknown-linux-gnueabihf
+
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu
+
+      - name: Configure cargo for cross-compilation
+        run: |
+          mkdir -p .cargo
+          cat > .cargo/config.toml << 'EOF'
+          [target.arm-unknown-linux-musleabihf]
+          linker = "arm-linux-gnueabihf-gcc"
+
+          [target.armv7-unknown-linux-gnueabihf]
+          linker = "arm-linux-gnueabihf-gcc"
+          EOF
+
+      - name: Build x86_64
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Build ARM (musl)
+        run: cargo build --release --target arm-unknown-linux-musleabihf
+
+      - name: Build ARMv7
+        run: cargo build --release --target armv7-unknown-linux-gnueabihf
+
+      - name: Extract version from Cargo.toml
+        id: get_version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: v$VERSION"
+
+      - name: Create release archives
+        run: |
+          # Create directories for each target
+          mkdir -p release/x86_64-unknown-linux-gnu
+          mkdir -p release/arm-unknown-linux-musleabihf
+          mkdir -p release/armv7-unknown-linux-gnueabihf
+
+          # Copy binaries and static files
+          cp target/x86_64-unknown-linux-gnu/release/labelserver release/x86_64-unknown-linux-gnu/
+          cp -r static release/x86_64-unknown-linux-gnu/
+
+          cp target/arm-unknown-linux-musleabihf/release/labelserver release/arm-unknown-linux-musleabihf/
+          cp -r static release/arm-unknown-linux-musleabihf/
+
+          cp target/armv7-unknown-linux-gnueabihf/release/labelserver release/armv7-unknown-linux-gnueabihf/
+          cp -r static release/armv7-unknown-linux-gnueabihf/
+
+          # Create tarballs
+          cd release
+          tar -czf labelserver-x86_64-unknown-linux-gnu.tar.gz -C x86_64-unknown-linux-gnu .
+          tar -czf labelserver-arm-unknown-linux-musleabihf.tar.gz -C arm-unknown-linux-musleabihf .
+          tar -czf labelserver-armv7-unknown-linux-gnueabihf.tar.gz -C armv7-unknown-linux-gnueabihf .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Release ${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release/labelserver-x86_64-unknown-linux-gnu.tar.gz
+            release/labelserver-arm-unknown-linux-musleabihf.tar.gz
+            release/labelserver-armv7-unknown-linux-gnueabihf.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
